@@ -316,6 +316,7 @@ void Polygon2DEditor::_menu_option(int p_option) {
 			EditorNode::get_singleton()->make_bottom_panel_item_visible(uv_edit);
 			set_process(true);
 			_update_bone_list();
+			get_tree()->connect("process_frame", callable_mp(this, &Polygon2DEditor::_center_view), CONNECT_ONE_SHOT);
 		} break;
 		case UVEDIT_POLYGON_TO_UV: {
 			Vector<Vector2> points = node->get_polygon();
@@ -472,7 +473,7 @@ void Polygon2DEditor::_uv_input(const Ref<InputEvent> &p_input) {
 	}
 
 	Transform2D mtx;
-	mtx.columns[2] = -uv_draw_ofs;
+	mtx.columns[2] = -uv_draw_ofs * uv_draw_zoom;
 	mtx.scale_basis(Vector2(uv_draw_zoom, uv_draw_zoom));
 
 	EditorUndoRedoManager *undo_redo = EditorUndoRedoManager::get_singleton();
@@ -967,7 +968,7 @@ void Polygon2DEditor::_uv_input(const Ref<InputEvent> &p_input) {
 
 	Ref<InputEventMagnifyGesture> magnify_gesture = p_input;
 	if (magnify_gesture.is_valid()) {
-		uv_zoom->set_value(uv_zoom->get_value() * magnify_gesture->get_factor());
+		_uv_zoom_callback(uv_draw_zoom * magnify_gesture->get_factor(), magnify_gesture->get_position(), p_input);
 	}
 
 	Ref<InputEventPanGesture> pan_gesture = p_input;
@@ -978,12 +979,14 @@ void Polygon2DEditor::_uv_input(const Ref<InputEvent> &p_input) {
 }
 
 void Polygon2DEditor::_uv_pan_callback(Vector2 p_scroll_vec, Ref<InputEvent> p_event) {
-	uv_hscroll->set_value(uv_hscroll->get_value() - p_scroll_vec.x);
-	uv_vscroll->set_value(uv_vscroll->get_value() - p_scroll_vec.y);
+	uv_hscroll->set_value(uv_hscroll->get_value() - p_scroll_vec.x / uv_draw_zoom);
+	uv_vscroll->set_value(uv_vscroll->get_value() - p_scroll_vec.y / uv_draw_zoom);
 }
 
 void Polygon2DEditor::_uv_zoom_callback(float p_zoom_factor, Vector2 p_origin, Ref<InputEvent> p_event) {
-	uv_zoom->set_value(uv_zoom->get_value() * p_zoom_factor);
+	const real_t prev_zoom = uv_draw_zoom;
+	uv_zoom->set_value(uv_draw_zoom * p_zoom_factor);
+	uv_draw_ofs += p_origin / prev_zoom - p_origin / uv_draw_zoom;
 }
 
 void Polygon2DEditor::_uv_scroll_changed(real_t) {
@@ -997,6 +1000,16 @@ void Polygon2DEditor::_uv_scroll_changed(real_t) {
 	uv_edit_draw->queue_redraw();
 }
 
+void Polygon2DEditor::_center_view() {
+	Size2 offset = (node->get_texture()->get_size() - uv_edit_draw->get_size()) / 2;
+	updating_uv_scroll = true;
+	uv_hscroll->set_value(offset.x);
+	uv_vscroll->set_value(offset.y);
+	uv_zoom->set_value(1.0);
+	updating_uv_scroll = false;
+	_uv_scroll_changed(0);
+}
+
 void Polygon2DEditor::_uv_draw() {
 	if (!_get_node()) {
 		return;
@@ -1005,7 +1018,7 @@ void Polygon2DEditor::_uv_draw() {
 	String warning;
 
 	Transform2D mtx;
-	mtx.columns[2] = -uv_draw_ofs;
+	mtx.columns[2] = -uv_draw_ofs * uv_draw_zoom;
 	mtx.scale_basis(Vector2(uv_draw_zoom, uv_draw_zoom));
 
 	Ref<Texture2D> base_tex = node->get_texture();
@@ -1220,35 +1233,30 @@ void Polygon2DEditor::_uv_draw() {
 		//draw paint circle
 		uv_edit_draw->draw_circle(bone_paint_pos, bone_paint_radius->get_value() * EDSCALE, Color(1, 1, 1, 0.1));
 	}
-
-	Rect2 rect;
-	rect.position = -uv_edit_draw->get_size();
-	rect.size = uv_edit_draw->get_size() * 2.0;
+	Point2 min_corner = Point2();
+	Point2 max_corner = Point2();
 	if (!base_tex.is_null()) {
-		rect.size += base_tex->get_size() * uv_draw_zoom;
+		max_corner = base_tex->get_size() * uv_draw_zoom;
 	}
+	for (int i = 0; i < uvs.size(); i++) {
+		min_corner = min_corner.min(uvs[i]);
+		max_corner = max_corner.max(uvs[i]);
+	}
+	Size2 page_size = uv_edit_draw->get_size() / uv_draw_zoom;
+	min_corner -= page_size;
+	max_corner += page_size;
 
 	updating_uv_scroll = true;
 
-	uv_hscroll->set_min(rect.position.x);
-	uv_hscroll->set_max(rect.position.x + rect.size.x);
-	if (ABS(rect.position.x - (rect.position.x + rect.size.x)) <= uv_edit_draw->get_size().x) {
-		uv_hscroll->hide();
-	} else {
-		uv_hscroll->show();
-		uv_hscroll->set_page(uv_edit_draw->get_size().x);
-		uv_hscroll->set_value(uv_draw_ofs.x);
-	}
+	uv_hscroll->set_min(min_corner.x);
+	uv_hscroll->set_max(max_corner.x);
+	uv_hscroll->set_page(page_size.x);
+	uv_hscroll->set_value(uv_draw_ofs.x);
 
-	uv_vscroll->set_min(rect.position.y);
-	uv_vscroll->set_max(rect.position.y + rect.size.y);
-	if (ABS(rect.position.y - (rect.position.y + rect.size.y)) <= uv_edit_draw->get_size().y) {
-		uv_vscroll->hide();
-	} else {
-		uv_vscroll->show();
-		uv_vscroll->set_page(uv_edit_draw->get_size().y);
-		uv_vscroll->set_value(uv_draw_ofs.y);
-	}
+	uv_vscroll->set_min(min_corner.y);
+	uv_vscroll->set_max(max_corner.y);
+	uv_vscroll->set_page(page_size.y);
+	uv_vscroll->set_value(uv_draw_ofs.y);
 
 	Size2 hmin = uv_hscroll->get_combined_minimum_size();
 	Size2 vmin = uv_vscroll->get_combined_minimum_size();

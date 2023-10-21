@@ -146,6 +146,7 @@ class Polygon2DEditor : public AbstractPolygon2DEditor {
 	void _cancel_editing();
 	void _update_polygon_editing_state();
 
+	void _center_view();
 	void _uv_scroll_changed(real_t);
 	void _uv_input(const Ref<InputEvent> &p_input);
 	void _uv_draw();
