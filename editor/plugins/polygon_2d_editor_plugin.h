@@ -119,6 +119,7 @@ class Polygon2DEditor : public AbstractPolygon2DEditor {
 	int uv_create_prev_internal_vertices = 0;
 	Array uv_create_bones_prev;
 	Array polygons_prev;
+	Ref<Texture2D> texture_prev;
 
 	Vector2 uv_create_to;
 	int point_drag_index;

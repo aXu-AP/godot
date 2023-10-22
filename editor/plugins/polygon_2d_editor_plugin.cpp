@@ -58,6 +58,9 @@ Node2D *Polygon2DEditor::_get_node() const {
 void Polygon2DEditor::_set_node(Node *p_polygon) {
 	node = Object::cast_to<Polygon2D>(p_polygon);
 	_update_polygon_editing_state();
+	if (node != nullptr) {
+		texture_prev = node->get_texture();
+	}
 	uv_edit_draw->queue_redraw();
 }
 
@@ -107,10 +110,18 @@ void Polygon2DEditor::_notification(int p_what) {
 			uv_edit_draw->add_theme_style_override("panel", get_theme_stylebox(SNAME("panel"), SNAME("Tree")));
 			bone_scroll->add_theme_style_override("panel", get_theme_stylebox(SNAME("panel"), SNAME("Tree")));
 		} break;
-
+		case NOTIFICATION_PROCESS: {
+			if (node != nullptr) {
+				if (texture_prev != node->get_texture()) {
+					texture_prev = node->get_texture();
+					uv_edit_draw->queue_redraw();
+				}
+			}
+		} break;
 		case NOTIFICATION_VISIBILITY_CHANGED: {
 			if (uv_edit->is_inside_tree()) {
 				EditorNode::get_singleton()->remove_bottom_panel_item(uv_edit);
+				set_process(false);
 			}
 		} break;
 	}
@@ -303,6 +314,7 @@ void Polygon2DEditor::_menu_option(int p_option) {
 				EditorNode::get_singleton()->add_bottom_panel_item(TTR("Polygon"), uv_edit);
 			}
 			EditorNode::get_singleton()->make_bottom_panel_item_visible(uv_edit);
+			set_process(true);
 			_update_bone_list();
 		} break;
 		case UVEDIT_POLYGON_TO_UV: {
