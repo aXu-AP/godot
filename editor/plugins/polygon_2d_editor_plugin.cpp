@@ -59,12 +59,19 @@ Node2D *Polygon2DEditor::_get_node() const {
 
 void Polygon2DEditor::_set_node(Node *p_polygon) {
 	CanvasItem *draw = Object::cast_to<CanvasItem>(uv_edit_draw);
+	if (node) {
+		node->disconnect("draw", callable_mp(draw, &CanvasItem::queue_redraw));
+		node->disconnect("draw", callable_mp(this, &Polygon2DEditor::_update_available_modes));
+	}
 
 	node = Object::cast_to<Polygon2D>(p_polygon);
 	_update_polygon_editing_state();
 	uv_edit_draw->queue_redraw();
 	if (node) {
 		_menu_option(MODE_EDIT_UV);
+		// Whenever polygon gets redrawn, there's possible changes for the editor as well.
+		node->connect("draw", callable_mp(draw, &CanvasItem::queue_redraw));
+		node->connect("draw", callable_mp(this, &Polygon2DEditor::_update_available_modes));
 	}
 }
 
