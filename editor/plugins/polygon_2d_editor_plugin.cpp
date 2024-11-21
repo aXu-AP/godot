@@ -35,7 +35,6 @@
 #include "editor/editor_node.h"
 #include "editor/editor_settings.h"
 #include "editor/editor_undo_redo_manager.h"
-#include "editor/gui/editor_bottom_panel.h"
 #include "editor/gui/editor_zoom_widget.h"
 #include "editor/plugins/canvas_item_editor_plugin.h"
 #include "editor/themes/editor_scale.h"
@@ -118,12 +117,6 @@ void Polygon2DEditor::_notification(int p_what) {
 		case NOTIFICATION_THEME_CHANGED: {
 			uv_edit_draw->add_theme_style_override(SceneStringName(panel), get_theme_stylebox(SceneStringName(panel), SNAME("Tree")));
 			bone_scroll->add_theme_style_override(SceneStringName(panel), get_theme_stylebox(SceneStringName(panel), SNAME("Tree")));
-		} break;
-
-		case NOTIFICATION_VISIBILITY_CHANGED: {
-			if (uv_edit->is_inside_tree()) {
-				EditorNode::get_bottom_panel()->remove_item(uv_edit);
-			}
 		} break;
 	}
 }
@@ -311,10 +304,6 @@ void Polygon2DEditor::_menu_option(int p_option) {
 				undo_redo->commit_action();
 			}
 
-			if (!uv_edit->is_inside_tree()) {
-				EditorNode::get_bottom_panel()->add_item(TTR("Polygon"), uv_edit);
-			}
-			EditorNode::get_bottom_panel()->make_item_visible(uv_edit);
 			_update_bone_list();
 			_update_available_modes();
 			get_tree()->connect("process_frame", callable_mp(this, &Polygon2DEditor::_center_view), CONNECT_ONE_SHOT);
