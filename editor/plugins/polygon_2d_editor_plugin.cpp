@@ -118,6 +118,9 @@ void Polygon2DEditor::_notification(int p_what) {
 			uv_edit_draw->add_theme_style_override(SceneStringName(panel), get_theme_stylebox(SceneStringName(panel), SNAME("Tree")));
 			bone_scroll->add_theme_style_override(SceneStringName(panel), get_theme_stylebox(SceneStringName(panel), SNAME("Tree")));
 		} break;
+		case NOTIFICATION_PREDELETE: {
+			uv_edit->queue_free();
+		} break;
 	}
 }
 
