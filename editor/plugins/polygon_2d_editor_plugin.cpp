@@ -58,8 +58,6 @@ Node2D *Polygon2DEditor::_get_node() const {
 }
 
 void Polygon2DEditor::_set_node(Node *p_polygon) {
-	CanvasItem *draw = Object::cast_to<CanvasItem>(uv_edit_draw);
-
 	node = Object::cast_to<Polygon2D>(p_polygon);
 	_update_polygon_editing_state();
 	uv_edit_draw->queue_redraw();
